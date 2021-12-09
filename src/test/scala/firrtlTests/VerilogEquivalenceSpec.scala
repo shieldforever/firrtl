@@ -120,4 +120,43 @@ class VerilogEquivalenceSpec extends FirrtlFlatSpec {
     firrtlEquivalenceWithVerilog(input1, expected)
     firrtlEquivalenceWithVerilog(input2, expected)
   }
+
+  "signed add followed by mux" should "be correct" in {
+    val header =
+      s"""|circuit SignedAddMux :
+          |  module SignedAddMux :
+          |    input sel : UInt<1>
+          |    input is0 : SInt<8>
+          |    input is1 : SInt<8>
+          |    output os : SInt<9>
+          |""".stripMargin
+    val input1 = header +
+      """|    os <= SInt(0)
+         |    when sel :
+         |      os <= add(is0, is1)
+         |""".stripMargin
+    val input2 = header +
+      """|    os <= mux(sel, add(is0, is1), SInt(0))
+         |""".stripMargin
+    val input3 = header +
+      """|    os <= mux(sel, SInt(0), add(is0, is1))
+         |""".stripMargin
+    val expectedHeader =
+      """|module SignedDivideRef(
+         |  input sel,
+         |  input signed [7:0] is0,
+         |  input signed [7:0] is1,
+         |  output signed [8:0] os
+         |);
+         |""".stripMargin
+    val expected1 = expectedHeader +
+      """|  assign os = sel ? is0 + is1 : 9'sh0;
+         |endmodule""".stripMargin
+    val expected2 = expectedHeader +
+      """|  assign os = sel ? 9'sh0 : is0 + is1;
+         |endmodule""".stripMargin
+    firrtlEquivalenceWithVerilog(input1, expected1)
+    firrtlEquivalenceWithVerilog(input2, expected1)
+    firrtlEquivalenceWithVerilog(input3, expected2)
+  }
 }
